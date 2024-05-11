@@ -1,7 +1,10 @@
 import pygame
 import random
 import numpy as np
-import time  # Import time module for performance measurement
+import time             # Import time module for performance measurement
+
+import csv
+
 from pygame.math import Vector2
 
 class Apple:
@@ -17,11 +20,13 @@ class Apple:
         rect = pygame.Rect(self.position.x * 30, self.position.y * 30, 30, 30)
         pygame.draw.rect(screen, (255, 0, 0), rect)
 
+
+
 class Snake:
     def __init__(self, grid_width, grid_height):
         self.grid_width = grid_width
         self.grid_height = grid_height
-        self.q_table = np.zeros((grid_width, grid_height, 4))  # Simplified Q-table without direction as state
+        self.q_table = np.zeros((grid_width, grid_height, 4))  # Simplified Q-table
         self.learning_rate = 0.1
         self.discount_factor = 0.9
         self.epsilon = 1.0  # Exploration rate
@@ -35,9 +40,16 @@ class Snake:
         self.direction = Vector2(0, 1)  # Start moving downwards
 
     def update(self, apple):
+        start_time = time.time()  # Start timing for this iteration
+
         current_state = (int(self.body[0].x), int(self.body[0].y))
         valid_actions = self.get_valid_actions()
-        
+
+        if not valid_actions:  # Check if there are no valid actions
+            print("No valid moves available. Resetting snake.")
+            self.reset()  # Reset the game or handle game over scenario
+            return time.time() - start_time
+
         if random.random() < self.epsilon:
             action = random.choice(valid_actions)
         else:
@@ -45,10 +57,10 @@ class Snake:
 
         move = Vector2(0, 1) if action == 0 else Vector2(0, -1) if action == 1 else Vector2(1, 0) if action == 2 else Vector2(-1, 0)
         new_head = self.body[0] + move
-        
+    
         reward = 100 if new_head == apple.position else -1
         new_state = (int(new_head.x), int(new_head.y))
-        
+    
         self.body.insert(0, new_head)
         if new_head == apple.position:
             apple.reset()
@@ -56,9 +68,15 @@ class Snake:
             self.body.pop()
 
         self.update_q_table(current_state, action, reward, new_state)
-        
+    
         if self.epsilon > self.min_epsilon:
             self.epsilon *= self.epsilon_decay
+    
+        # Calculate and return the time taken for this iteration
+        return time.time() - start_time
+
+    
+
 
     def get_valid_actions(self):
         actions = []
@@ -92,26 +110,39 @@ def main():
     apple = Apple(grid_width, grid_height)
     clock = pygame.time.Clock()
 
-    # Timing measurement
-    start_time = time.time()
+    computation_times = []  # To store computation times for each frame
+    apples_collected = []  # To store the count of apples collected over time
 
     running = True
+    start_time = time.time()
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
         screen.fill((51, 51, 51))
-        snake.update(apple)
+        computation_start = time.time()  # Start time for computation
+        snake.update(apple)  # Update the snake and apple positions
+        computation_times.append(time.time() - computation_start)  # Compute and store the time taken for the update
+
         snake.show(screen)
         apple.show(screen)
         pygame.display.flip()
-        clock.tick(100)  # Adjust as necessary
+        clock.tick(100)  # High tick rate for faster simulation
 
-    # Calculate elapsed time
+        apples_collected.append(len(snake.body) - 3)  # Store the current count of apples collected
+
     end_time = time.time()
     elapsed_time = end_time - start_time
     print("Elapsed Time:", elapsed_time, "seconds")
+
+    # Save the collected data to a CSV file
+    with open('QLearning_Performance_Data.csv', mode='w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=['Computation_Time', 'Apples_Collected'])
+        writer.writeheader()
+        for comp_time, apples in zip(computation_times, apples_collected):
+            writer.writerow({'Computation_Time': comp_time, 'Apples_Collected': apples})
 
     pygame.quit()
 
