@@ -2,10 +2,8 @@ import pygame
 import random
 from pygame.math import Vector2
 from collections import deque
-
-
-import time 
-
+import time
+import csv
 
 class Apple:
     def __init__(self):
@@ -25,18 +23,12 @@ class Apple:
 
 class Node:
     def __init__(self, position, parent=None):
-        self.position = position  # Position as Vector2
+        self.position = position
         self.parent = parent
-        self.g = 0
-        self.h = 0
-        self.f = 0
-
-    def __lt__(self, other):
-        return self.f < other.f
 
 def bfs_search(grid, start, goal):
     queue = deque([start])
-    came_from = {(start.position.x, start.position.y): None}  # Use tuple for position
+    came_from = {(start.position.x, start.position.y): None}
 
     while queue:
         current_node = queue.popleft()
@@ -51,10 +43,9 @@ def bfs_search(grid, start, goal):
         for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             neighbor_pos = Vector2(current_node.position.x + dx, current_node.position.y + dy)
             if 0 <= neighbor_pos.x < 40 and 0 <= neighbor_pos.y < 20:
-                neighbor = Node(neighbor_pos, current_node)
                 neighbor_tuple = (neighbor_pos.x, neighbor_pos.y)
                 if neighbor_tuple not in came_from:
-                    queue.append(neighbor)
+                    queue.append(Node(neighbor_pos))
                     came_from[neighbor_tuple] = current_node
 
     return None
@@ -63,7 +54,7 @@ class Snake:
     def __init__(self):
         self.body = [Vector2(i, 0) for i in range(3)]
         self.direction = Vector2(1, 0)
-        self.path = []
+        self.path = []  # Initialize path as an empty list
 
     def update(self, apple, grid):
         for y in range(20):
@@ -94,8 +85,7 @@ class Snake:
     def show(self, screen):
         for block in self.body:
             rect = pygame.Rect(block.x * 30, block.y * 30, 30, 30)
-            pygame.draw.rect(screen, (0, 255, 0), rect)  # Snake color changed to green
-
+            pygame.draw.rect(screen, (0, 255, 0), rect)
 
 
 def main():
@@ -104,16 +94,17 @@ def main():
     clock = pygame.time.Clock()
     snake = Snake()
     apple = Apple()
-
     grid = [[0 for _ in range(40)] for _ in range(20)]
-    for block in snake.body:
-        grid[int(block.y)][int(block.x)] = -1
-
-    # Timing measurement
-    start_time = time.time()
+    computation_times = []
+    path_lengths = []
 
     running = True
+    previous_time = time.time()
     while running:
+        current_time = time.time()
+        computation_time = current_time - previous_time
+        computation_times.append(computation_time)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -126,15 +117,17 @@ def main():
         pygame.display.flip()
         clock.tick(5)
 
-    # Calculate elapsed time
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print("BFS Algorithm:")
-    print("Elapsed Time:", elapsed_time, "seconds")
+        path_lengths.append(len(snake.body))
+        previous_time = current_time  # Update for the next loop
 
-    # Calculate path length
-    path_length = len(snake.body)  # Length of snake body represents path length
-    print("Path Length:", path_length)
+    # Data logging
+    data = [{'Computation_Time': comp_time, 'Path_Efficiency': path_length} for comp_time, path_length in zip(computation_times, path_lengths)]
+    csv_file_path = 'BFS_Performance_Data.csv'
+    fieldnames = ['Computation_Time', 'Path_Efficiency']
+    with open(csv_file_path, mode='w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
 
     pygame.quit()
 
