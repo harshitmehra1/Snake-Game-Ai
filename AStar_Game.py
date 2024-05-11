@@ -1,18 +1,14 @@
 import pygame
 import random
-
+import csv
+import time
 from pygame.math import Vector2
 import heapq
 
-
-import time
-
 class Apple:
-
     def __init__(self):
         self.boxes = [Vector2(i, j) for i in range(40) for j in range(20)]
         self.generate([Vector2(0, 0), Vector2(1, 0), Vector2(2, 0)])
-
 
     def generate(self, snake_body):
         empty_boxes = [box for box in self.boxes if box not in snake_body]
@@ -21,14 +17,11 @@ class Apple:
         self.position = random.choice(empty_boxes)
         return True
 
-
     def show(self, screen):
         rect = pygame.Rect(self.position.x * 30, self.position.y * 30, 30, 30)
         pygame.draw.rect(screen, (255, 0, 0), rect)
 
-
 class Node:
-
     def __init__(self, position, parent=None):
         self.position = position
         self.parent = parent
@@ -45,16 +38,13 @@ class Node:
     def __hash__(self):
         return hash((self.position.x, self.position.y))
 
-
 def heuristic(a, b):
     return abs(a.x - b.x) + abs(a.y - b.y)
-
 
 def astar_search(grid, start, goal):
     open_set = []
     heapq.heappush(open_set, start)
     closed_set = set()
-
 
     while open_set:
         current_node = heapq.heappop(open_set)
@@ -81,16 +71,13 @@ def astar_search(grid, start, goal):
 
     return None
 
-
 class Snake:
-
     def __init__(self):
         self.body = [Vector2(i, 0) for i in range(3)]
         self.direction = Vector2(1, 0)
         self.path = []
 
     def update(self, apple, grid):
-        # Update grid to reflect current snake positions as obstacles
         for y in range(20):
             for x in range(40):
                 grid[y][x] = 0
@@ -105,7 +92,6 @@ class Snake:
                 print("No path found!")
                 return False
 
-
         next_position = self.path.pop(0)
         self.body.append(next_position)
         if next_position == apple.position:
@@ -114,7 +100,6 @@ class Snake:
             self.body.pop(0)
         return True
 
-
     def get_head_position(self):
         return self.body[-1]
 
@@ -122,9 +107,6 @@ class Snake:
         for block in self.body:
             rect = pygame.Rect(block.x * 30, block.y * 30, 30, 30)
             pygame.draw.rect(screen, (0, 164, 239), rect)
-
-
-
 
 def main():
     pygame.init()
@@ -137,13 +119,14 @@ def main():
     for block in snake.body:
         grid[int(block.y)][int(block.x)] = -1
 
-    # Timing measurement
-    start_time = time.time()
+    computation_times = []
+    path_lengths = []
 
+    start_time = time.time()
     running = True
     while running:
         for event in pygame.event.get():
-            if event.type is pygame.QUIT:
+            if event.type == pygame.QUIT:
                 running = False
 
         screen.fill((51, 51, 51))
@@ -154,15 +137,18 @@ def main():
         pygame.display.flip()
         clock.tick(5)
 
-    # Calculate elapsed time
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print("A* Algorithm:")
-    print("Elapsed Time:", elapsed_time, "seconds")
+        computation_time = time.time() - start_time
+        computation_times.append(computation_time)
+        path_lengths.append(len(snake.body))
 
-    # Calculate path length
-    path_length = len(snake.body)  # Length of snake body represents path length
-    print("Path Length:", path_length)
+    # Data logging
+    data = [{'Computation_Time': comp_time, 'Path_Efficiency': path_length} for comp_time, path_length in zip(computation_times, path_lengths)]
+    csv_file_path = 'AStar_Performance_Data.csv'
+    fieldnames = ['Computation_Time', 'Path_Efficiency']
+    with open(csv_file_path, mode='w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
 
     pygame.quit()
 
